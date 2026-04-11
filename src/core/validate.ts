@@ -1,12 +1,14 @@
-import { execFileSync } from "node:child_process"
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 
 function commandExists(bin: string): boolean {
-  try {
-    execFileSync("which", [bin], { stdio: "ignore" })
-    return true
-  } catch {
-    return false
-  }
+  const sep = process.platform === "win32" ? ";" : ":"
+  const exts =
+    process.platform === "win32" ? [".exe", ".cmd", ".bat", ""] : [""]
+  const dirs = (process.env.PATH ?? "").split(sep)
+  return dirs.some((dir) =>
+    exts.some((ext) => existsSync(join(dir, bin + ext))),
+  )
 }
 
 export function validateHooks(hooks: Record<string, string>): Error | null {

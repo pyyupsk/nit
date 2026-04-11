@@ -34,6 +34,7 @@ export async function run(
 
   const [gitErr, gitDir] = await findGitDir(cwd)
   if (gitErr !== null) {
+    if (command !== "check") return 0
     logger.error(`nit: ${gitErr.message}`)
     return 1
   }
