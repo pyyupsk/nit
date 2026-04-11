@@ -170,6 +170,23 @@ describe("run (CLI dispatch)", () => {
     expect(code).toBe(0)
     expect(existsSync(foreignHook)).toBe(true)
   })
+
+  it("check exits 1 when a stale nit hook exists in hooks dir", async () => {
+    // Install configured hooks
+    await run(["install"], TMP)
+
+    // Manually write a stale nit-managed hook not in config
+    const staleHook = join(GIT_HOOKS, "post-merge")
+    writeFileSync(
+      staleHook,
+      '#!/bin/sh\nif [ "$SKIP_NIT" = "1" ]; then\n  exit 0\nfi\nbun run old-script\n',
+      "utf8",
+    )
+
+    const code = await run(["check"], TMP)
+
+    expect(code).toBe(1)
+  })
 })
 
 describe("hookScript fingerprint contract", () => {
