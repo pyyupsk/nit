@@ -9,7 +9,9 @@
   "bin": {
     "nit": "dist/cli.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "check": "biome check .",
@@ -22,11 +24,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.11",
-    "@types/bun": "latest",
+    "@types/bun": "^1.3.12",
     "@vitest/coverage-v8": "^4.1.4",
     "prettier": "^3.8.2",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.2",
     "vitest": "^4.1.4"
   },
   "nit": {

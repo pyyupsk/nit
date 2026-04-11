@@ -21,7 +21,10 @@ export async function readConfig(cwd: string): SafeResult<NitConfig> {
   try {
     pkg = JSON.parse(raw);
   } catch {
-    return [new Error(`package.json contains invalid JSON at ${pkgPath}`), null];
+    return [
+      new Error(`package.json contains invalid JSON at ${pkgPath}`),
+      null,
+    ];
   }
 
   if (typeof pkg !== "object" || pkg === null) {
