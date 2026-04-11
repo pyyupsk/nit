@@ -77,11 +77,10 @@ export async function run(
   return 0
 }
 
-// Run when invoked directly as a binary
+// Run when invoked directly as a binary (cli.js/cli.ts dev, or as `nit` bin)
 const isMain =
   typeof process !== "undefined" &&
-  process.argv[1] !== undefined &&
-  (process.argv[1].endsWith("cli.js") || process.argv[1].endsWith("cli.ts"))
+  /[/\\](?:cli\.[jt]s|nit)$/.test(process.argv[1] ?? "")
 
 if (isMain) {
   const args = process.argv.slice(2)
