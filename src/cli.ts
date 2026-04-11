@@ -47,7 +47,7 @@ export async function run(
       return 1
     }
     if (!inSync) {
-      logger.error("nit: hooks are out of sync — run \`nit install\` to fix")
+      logger.error("nit: hooks are out of sync — run `nit install` to fix")
       return 1
     }
     logger.log("nit: hooks are up to date")
