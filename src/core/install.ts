@@ -7,14 +7,9 @@ import {
   writeFile,
 } from "node:fs/promises"
 import { join } from "node:path"
-
-const NIT_FINGERPRINT = '#!/bin/sh\nif [ "$SKIP_NIT"'
+import { hookScript, NIT_FINGERPRINT } from "./hook-script"
 
 type SafeResult = Promise<[Error, null] | [null, true]>
-
-function hookScript(cmd: string): string {
-  return `#!/bin/sh\nif [ "$SKIP_NIT" = "1" ]; then\n  exit 0\nfi\n${cmd}\n`
-}
 
 export async function installHooks(
   hooks: Record<string, string>,

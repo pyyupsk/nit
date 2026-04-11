@@ -1,8 +1,7 @@
 import { existsSync } from "node:fs"
 import { readdir, readFile, stat } from "node:fs/promises"
 import { join } from "node:path"
-
-const NIT_FINGERPRINT = '#!/bin/sh\nif [ "$SKIP_NIT"'
+import { NIT_FINGERPRINT } from "./hook-script"
 
 type SafeResult = Promise<[Error, null] | [null, boolean]>
 
