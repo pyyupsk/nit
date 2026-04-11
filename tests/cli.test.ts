@@ -81,7 +81,9 @@ describe("run (CLI dispatch)", () => {
     await run(["install"], TMP)
 
     const content = readFileSync(join(GIT_HOOKS, "pre-commit"), "utf8")
-    expect(content).toBe("#!/bin/sh\nbun run lint\n")
+    expect(content).toBe(
+      '#!/bin/sh\nif [ "$SKIP_NIT" = "1" ]; then\n  exit 0\nfi\nbun run lint\n',
+    )
   })
 
   it("exits 0 silently when no .git directory exists (graceful prepare skip)", async () => {

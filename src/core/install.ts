@@ -4,7 +4,7 @@ import { join } from "node:path"
 type SafeResult = Promise<[Error, null] | [null, true]>
 
 function hookScript(cmd: string): string {
-  return `#!/bin/sh\n${cmd}\n`
+  return `#!/bin/sh\nif [ "$SKIP_NIT" = "1" ]; then\n  exit 0\nfi\n${cmd}\n`
 }
 
 export async function installHooks(
