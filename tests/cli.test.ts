@@ -165,8 +165,17 @@ describe("run (CLI dispatch)", () => {
     const foreignHook = join(GIT_HOOKS, "post-merge")
     writeFileSync(foreignHook, "#!/bin/sh\necho hello\n", "utf8")
 
-    await run(["install"], TMP)
+    const code = await run(["install"], TMP)
 
+    expect(code).toBe(0)
     expect(existsSync(foreignHook)).toBe(true)
+  })
+})
+
+describe("hookScript fingerprint contract", () => {
+  it("generated hook script starts with NIT_FINGERPRINT", async () => {
+    await run(["install"], TMP)
+    const content = readFileSync(join(GIT_HOOKS, "pre-commit"), "utf8")
+    expect(content.startsWith('#!/bin/sh\nif [ "$SKIP_NIT"')).toBe(true)
   })
 })

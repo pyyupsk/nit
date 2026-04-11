@@ -45,13 +45,13 @@ export async function installHooks(
 
   // Prune stale nit-owned hooks
   try {
-    const entries = await readdir(hooksDir)
+    const entries = await readdir(hooksDir, { withFileTypes: true })
     const configuredNames = new Set(Object.keys(hooks))
     await Promise.all(
       entries
-        .filter((entry) => !configuredNames.has(entry))
-        .map(async (entry) => {
-          const hookPath = join(hooksDir, entry)
+        .filter((e) => e.isFile() && !configuredNames.has(e.name))
+        .map(async (e) => {
+          const hookPath = join(hooksDir, e.name)
           try {
             const content = await readFile(hookPath, "utf8")
             if (content.startsWith(NIT_FINGERPRINT)) {
