@@ -2,6 +2,7 @@
   "name": "@pyyupsk/nit",
   "version": "0.1.0",
   "description": "Lightweight zero-dependency Git hooks manager for JavaScript/Node.js projects",
+  "license": "MIT",
   "type": "module",
   "main": "dist/cli.js",
   "module": "dist/cli.js",
