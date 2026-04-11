@@ -11,3 +11,10 @@ permissions: {}
 jobs:
   unit-test:
     uses: sxzz/workflows/.github/workflows/unit-test.yml@v1
+    with:
+      typecheck: bun run typecheck
+      lint: bun run check
+      build: bun run build
+      test: bun run test
+      os-matrix: '"ubuntu-latest"'
+      node-versions: '22'
