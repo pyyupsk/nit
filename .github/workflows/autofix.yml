@@ -2,10 +2,22 @@ name: autofix.ci
 
 on: [pull_request]
 
+permissions:
+  contents: read
+
 jobs:
   autofix:
-    uses: sxzz/workflows/.github/workflows/autofix.yml@v1
-    with:
-      command: bun run format
-    permissions:
-      contents: read
+    name: Autofix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Format
+        run: bun run format
+
+      - uses: autofix-ci/action@7a166d7532b277f34e16238930461bf77f9d7ed8 # v1.3.3
