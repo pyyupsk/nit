@@ -1,0 +1,37 @@
+{
+  "name": "@pyyupsk/nit",
+  "version": "0.1.0",
+  "description": "Lightweight zero-dependency Git hooks manager for JavaScript/Node.js projects",
+  "type": "module",
+  "main": "dist/cli.js",
+  "module": "dist/cli.js",
+  "types": "dist/cli.d.ts",
+  "bin": {
+    "nit": "dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "check": "biome check .",
+    "dev": "tsup --watch",
+    "format": "biome format --write . && prettier --write .",
+    "prepare": "nit install",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.11",
+    "@types/bun": "latest",
+    "@vitest/coverage-v8": "^4.1.4",
+    "prettier": "^3.8.2",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.4"
+  },
+  "nit": {
+    "hooks": {
+      "pre-commit": "bun format && bun check && bun typecheck && bun test && bun run build"
+    }
+  }
+}
