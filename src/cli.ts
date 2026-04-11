@@ -6,24 +6,35 @@ import { validateHooks } from "./core/validate"
 import { readConfig } from "./utils/config"
 import { findGitDir } from "./utils/git"
 
-export async function run(args: string[], cwd: string): Promise<number> {
+type Logger = {
+  log: (msg: string) => void
+  error: (msg: string) => void
+}
+
+const silent: Logger = { log: () => {}, error: () => {} }
+
+export async function run(
+  args: string[],
+  cwd: string,
+  logger: Logger = silent,
+): Promise<number> {
   const command = args.at(0) ?? "install"
 
   if (!["install", "sync", "check"].includes(command)) {
-    console.error(`nit: unknown command "${command}"`)
-    console.error("Usage: nit [install|sync|check]")
+    logger.error(`nit: unknown command "${command}"`)
+    logger.error("Usage: nit [install|sync|check]")
     return 1
   }
 
   const [cfgErr, config] = await readConfig(cwd)
   if (cfgErr !== null) {
-    console.error(`nit: ${cfgErr.message}`)
+    logger.error(`nit: ${cfgErr.message}`)
     return 1
   }
 
   const [gitErr, gitDir] = await findGitDir(cwd)
   if (gitErr !== null) {
-    console.error(`nit: ${gitErr.message}`)
+    logger.error(`nit: ${gitErr.message}`)
     return 1
   }
 
@@ -32,35 +43,35 @@ export async function run(args: string[], cwd: string): Promise<number> {
   if (command === "check") {
     const [err, inSync] = await checkHooks(config.hooks, hooksDir)
     if (err !== null) {
-      console.error(`nit: ${err.message}`)
+      logger.error(`nit: ${err.message}`)
       return 1
     }
     if (!inSync) {
-      console.error("nit: hooks are out of sync — run `nit install` to fix")
+      logger.error("nit: hooks are out of sync — run \`nit install\` to fix")
       return 1
     }
-    console.log("nit: hooks are up to date")
+    logger.log("nit: hooks are up to date")
     return 0
   }
 
   // install / sync
   const validErr = validateHooks(config.hooks)
   if (validErr !== null) {
-    console.error(`nit: ${validErr.message}`)
+    logger.error(`nit: ${validErr.message}`)
     return 1
   }
 
   const [installErr] = await installHooks(config.hooks, hooksDir)
   if (installErr !== null) {
-    console.error(`nit: ${installErr.message}`)
+    logger.error(`nit: ${installErr.message}`)
     return 1
   }
 
   const hookNames = Object.keys(config.hooks)
   if (hookNames.length === 0) {
-    console.log("nit: no hooks configured")
+    logger.log("nit: no hooks configured")
   } else {
-    console.log(`nit: installed ${hookNames.join(", ")}`)
+    logger.log(`nit: installed ${hookNames.join(", ")}`)
   }
   return 0
 }
@@ -73,7 +84,7 @@ const isMain =
 
 if (isMain) {
   const args = process.argv.slice(2)
-  run(args, process.cwd()).then((code) => {
+  run(args, process.cwd(), console).then((code) => {
     process.exit(code)
   })
 }
