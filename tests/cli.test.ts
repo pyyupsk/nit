@@ -143,4 +143,30 @@ describe("run (CLI dispatch)", () => {
     expect(code).toBe(0)
     expect(logs).toContain("nit: no hooks configured")
   })
+
+  it("removes stale nit hook on install when removed from config", async () => {
+    // Install pre-commit first
+    await run(["install"], TMP)
+    expect(existsSync(join(GIT_HOOKS, "pre-commit"))).toBe(true)
+
+    // Update config to only have commit-msg
+    writePkg({ hooks: { "commit-msg": "bun run test" } })
+
+    // Re-install — pre-commit should be pruned
+    const code = await run(["install"], TMP)
+
+    expect(code).toBe(0)
+    expect(existsSync(join(GIT_HOOKS, "pre-commit"))).toBe(false)
+    expect(existsSync(join(GIT_HOOKS, "commit-msg"))).toBe(true)
+  })
+
+  it("preserves non-nit hook file on install", async () => {
+    // Place a hook not written by nit (no SKIP_NIT shebang)
+    const foreignHook = join(GIT_HOOKS, "post-merge")
+    writeFileSync(foreignHook, "#!/bin/sh\necho hello\n", "utf8")
+
+    await run(["install"], TMP)
+
+    expect(existsSync(foreignHook)).toBe(true)
+  })
 })
