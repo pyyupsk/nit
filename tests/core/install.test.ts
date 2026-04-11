@@ -65,6 +65,20 @@ describe("installHooks", () => {
     expect(err).toBeInstanceOf(Error)
   })
 
+  it("rolls back written hooks when a later write fails", async () => {
+    // Place a directory at the second hook path — writeFile on a directory fails
+    mkdirSync(join(GIT_HOOKS, "commit-msg"))
+
+    const [err] = await installHooks(
+      { "pre-commit": "bun run lint", "commit-msg": "bun run test" },
+      GIT_HOOKS,
+    )
+
+    expect(err).toBeInstanceOf(Error)
+    // First hook must be rolled back
+    expect(existsSync(join(GIT_HOOKS, "pre-commit"))).toBe(false)
+  })
+
   it("overwrites an existing hook file", async () => {
     await installHooks({ "pre-commit": "bun run old" }, GIT_HOOKS)
     const [err] = await installHooks({ "pre-commit": "bun run new" }, GIT_HOOKS)

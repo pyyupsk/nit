@@ -34,6 +34,13 @@ describe("validateHooks", () => {
     expect(err).toBeNull()
   })
 
+  it("returns an Error when a hook command is blank after trimming", () => {
+    const err = validateHooks({ "pre-commit": "   " })
+
+    expect(err).toBeInstanceOf(Error)
+    expect(err?.message).toMatch(/empty command/i)
+  })
+
   it("returns the first error found when multiple hooks fail", () => {
     const err = validateHooks({
       "pre-commit": "__missing_a__",

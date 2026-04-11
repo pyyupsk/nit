@@ -1,6 +1,7 @@
 import {
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -81,5 +82,63 @@ describe("run (CLI dispatch)", () => {
 
     const content = readFileSync(join(GIT_HOOKS, "pre-commit"), "utf8")
     expect(content).toBe("#!/bin/sh\nbun run lint\n")
+  })
+
+  it("exits 0 silently when no .git directory exists (graceful prepare skip)", async () => {
+    const noGit = mkdtempSync(join(TMP, "no-git-"))
+    writeFileSync(
+      join(noGit, "package.json"),
+      JSON.stringify({ nit: { hooks: { "pre-commit": "bun run lint" } } }),
+      "utf8",
+    )
+
+    const code = await run(["install"], noGit)
+
+    expect(code).toBe(0)
+  })
+
+  it("check exits 1 with error message when .git/hooks does not exist", async () => {
+    rmSync(GIT_HOOKS, { recursive: true })
+    const errors: string[] = []
+    const logger = { log: () => {}, error: (m: string) => errors.push(m) }
+
+    const code = await run(["check"], TMP, logger)
+
+    expect(code).toBe(1)
+    expect(errors.some((m) => m.startsWith("nit:"))).toBe(true)
+  })
+
+  it("exits 1 with error message when hook binary is not in PATH", async () => {
+    writePkg({ hooks: { "pre-commit": "__nonexistent_binary__" } })
+    const errors: string[] = []
+    const logger = { log: () => {}, error: (m: string) => errors.push(m) }
+
+    const code = await run(["install"], TMP, logger)
+
+    expect(code).toBe(1)
+    expect(errors.some((m) => m.includes("not found"))).toBe(true)
+  })
+
+  it("exits 1 with error message when hook cannot be written", async () => {
+    // Place a directory at the hook path so writeFile fails
+    mkdirSync(join(GIT_HOOKS, "pre-commit"))
+    const errors: string[] = []
+    const logger = { log: () => {}, error: (m: string) => errors.push(m) }
+
+    const code = await run(["install"], TMP, logger)
+
+    expect(code).toBe(1)
+    expect(errors.some((m) => m.startsWith("nit:"))).toBe(true)
+  })
+
+  it("logs 'no hooks configured' when hooks object is empty", async () => {
+    writePkg({ hooks: {} })
+    const logs: string[] = []
+    const logger = { log: (m: string) => logs.push(m), error: () => {} }
+
+    const code = await run(["install"], TMP, logger)
+
+    expect(code).toBe(0)
+    expect(logs).toContain("nit: no hooks configured")
   })
 })
