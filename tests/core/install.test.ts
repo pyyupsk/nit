@@ -3,6 +3,8 @@ import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { installHooks } from "../../src/core/install"
 
+const isWindows = process.platform === "win32"
+
 const TMP = join(import.meta.dirname, "__tmp_install__")
 const GIT_HOOKS = join(TMP, ".git", "hooks")
 
@@ -38,17 +40,20 @@ describe("installHooks", () => {
     expect(content).toContain("bun run lint")
   })
 
-  it("makes hook files executable (owner execute bit)", async () => {
-    const [err] = await installHooks(
-      { "pre-commit": "bun run lint" },
-      GIT_HOOKS,
-    )
+  it.skipIf(isWindows)(
+    "makes hook files executable (owner execute bit)",
+    async () => {
+      const [err] = await installHooks(
+        { "pre-commit": "bun run lint" },
+        GIT_HOOKS,
+      )
 
-    expect(err).toBeNull()
-    const mode = statSync(join(GIT_HOOKS, "pre-commit")).mode
-    // eslint-disable-next-line no-bitwise
-    expect(mode & 0o100).toBeTruthy()
-  })
+      expect(err).toBeNull()
+      const mode = statSync(join(GIT_HOOKS, "pre-commit")).mode
+      // eslint-disable-next-line no-bitwise
+      expect(mode & 0o100).toBeTruthy()
+    },
+  )
 
   it("returns null error for an empty hooks object", async () => {
     const [err] = await installHooks({}, GIT_HOOKS)
