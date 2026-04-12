@@ -10,6 +10,7 @@ Configure hooks in `package.json` — no extra config files, no dependencies.
 - Config lives in `package.json` under a `"nit"` key
 - Auto-installs hooks via the `prepare` lifecycle script
 - CI-safe `check` command — exits 1 when hooks are out of sync
+- Staged hooks — run commands only on files that match a glob pattern
 - Works with any package manager (bun, npm, pnpm, yarn)
 
 ## Installation
@@ -45,12 +46,34 @@ Add a `"nit"` key to your `package.json`:
 
 Any valid [Git hook name](https://git-scm.com/docs/githooks) is supported as a key. The value is the shell command to run.
 
+### Staged Hooks
+
+Instead of a plain command string, a hook can be defined as a `stages` object. Each key is a glob pattern and the value is the command to run on the matching staged files. Use `{staged_files}` as a placeholder — nit replaces it with the list of matched files before running the command.
+
+```json
+{
+  "nit": {
+    "hooks": {
+      "pre-commit": {
+        "stages": {
+          "**/*.{ts,js}": "biome check --write {staged_files}",
+          "**/*.css": "stylelint --fix {staged_files}"
+        }
+      }
+    }
+  }
+}
+```
+
+Stages only run when at least one staged file matches the pattern. If no files match a stage, that stage is skipped entirely. Commands without `{staged_files}` run as-is (useful for project-wide checks triggered by any staged file).
+
 ## CLI
 
 ```sh
-nit install   # write hooks to .git/hooks/ (default when run bare)
-nit sync      # alias for install
-nit check     # exit 1 if installed hooks differ from config (CI-safe)
+nit install          # write hooks to .git/hooks/ (default when run bare)
+nit sync             # alias for install
+nit check            # exit 1 if installed hooks differ from config (CI-safe)
+nit exec <hook>      # run the staged hook for <hook> against currently staged files
 ```
 
 ### `nit install` / `nit sync`
@@ -71,6 +94,14 @@ $ nit check
 nit: hooks are up to date
 ```
 
+### `nit exec <hook>`
+
+Runs a staged hook by name against the currently staged files. This is the command that the generated hook script calls internally — you rarely need to run it directly.
+
+```sh
+nit exec pre-commit
+```
+
 ## Self-hosting Example
 
 `nit` manages its own hooks:
@@ -79,7 +110,12 @@ nit: hooks are up to date
 {
   "nit": {
     "hooks": {
-      "pre-commit": "bun format && bun check && bun typecheck && bun test && bun run build"
+      "pre-commit": {
+        "stages": {
+          "**/*.{ts,json}": "biome check --write {staged_files}"
+        }
+      },
+      "pre-push": "bun typecheck && bun test && bun run build"
     }
   }
 }
