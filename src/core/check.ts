@@ -2,6 +2,7 @@ import { existsSync } from "node:fs"
 import { readdir, readFile, stat } from "node:fs/promises"
 import { join } from "node:path"
 import type { HookDef } from "../utils/config"
+import { safe } from "../utils/safe"
 import { NIT_FINGERPRINT, nitExecCmd } from "./hook-script"
 
 type SafeResult = Promise<[Error, null] | [null, boolean]>
@@ -14,15 +15,8 @@ async function checkInstalledHook(
   const hookPath = join(hooksDir, name)
   if (!existsSync(hookPath)) return [null, false]
 
-  let content: string
-  try {
-    content = await readFile(hookPath, "utf8")
-  } catch (e) {
-    return [
-      e instanceof Error ? e : new Error(`Failed to read hook "${name}"`),
-      null,
-    ]
-  }
+  const [readErr, content] = await safe(readFile(hookPath, "utf8"))
+  if (readErr !== null) return [readErr, null]
 
   const expectedLine = typeof def === "string" ? def.trim() : nitExecCmd(name)
   const hasCmd = content
