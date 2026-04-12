@@ -51,4 +51,45 @@ describe("validateHooks", () => {
     // Only one error returned — the first invalid hook
     expect(err?.message).toMatch(/__missing_a__|__missing_b__/)
   })
+
+  it("returns null when all stage commands exist in PATH", () => {
+    const result = validateHooks({
+      "pre-commit": {
+        stages: {
+          "*.ts": "node --version",
+          "*.md": 'node -e "{}"',
+        },
+      },
+    })
+    expect(result).toBeNull()
+  })
+
+  it("returns error when a stage command binary is not in PATH", () => {
+    const result = validateHooks({
+      "pre-commit": {
+        stages: {
+          "*.ts": "nonexistent-tool-xyz-abc --flag",
+        },
+      },
+    })
+    expect(result).toBeInstanceOf(Error)
+    expect(result?.message).toContain("pre-commit[*.ts]")
+    expect(result?.message).toContain("nonexistent-tool-xyz-abc")
+  })
+
+  it("returns error when a stage command is empty", () => {
+    const result = validateHooks({
+      "pre-commit": { stages: { "*.ts": "   " } },
+    })
+    expect(result).toBeInstanceOf(Error)
+    expect(result?.message).toContain("pre-commit[*.ts]")
+  })
+
+  it("validates mixed string and staged hooks", () => {
+    const result = validateHooks({
+      "pre-commit": { stages: { "*.ts": "node --version" } },
+      "commit-msg": "node --version",
+    })
+    expect(result).toBeNull()
+  })
 })

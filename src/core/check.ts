@@ -1,12 +1,59 @@
 import { existsSync } from "node:fs"
 import { readdir, readFile, stat } from "node:fs/promises"
 import { join } from "node:path"
-import { NIT_FINGERPRINT } from "./hook-script"
+import type { HookDef } from "../utils/config"
+import { NIT_FINGERPRINT, nitExecCmd } from "./hook-script"
 
 type SafeResult = Promise<[Error, null] | [null, boolean]>
 
+async function checkInstalledHook(
+  name: string,
+  def: HookDef,
+  hooksDir: string,
+): SafeResult {
+  const hookPath = join(hooksDir, name)
+  if (!existsSync(hookPath)) return [null, false]
+
+  let content: string
+  try {
+    content = await readFile(hookPath, "utf8")
+  } catch (e) {
+    return [
+      e instanceof Error ? e : new Error(`Failed to read hook "${name}"`),
+      null,
+    ]
+  }
+
+  const expectedLine = typeof def === "string" ? def.trim() : nitExecCmd(name)
+  const hasCmd = content
+    .split("\n")
+    .some((line) => line.trim() === expectedLine)
+  return [null, hasCmd]
+}
+
+async function hasStaleHook(
+  hooksDir: string,
+  configuredNames: Set<string>,
+): Promise<boolean> {
+  try {
+    const entries = await readdir(hooksDir, { withFileTypes: true })
+    for (const e of entries) {
+      if (!e.isFile() || configuredNames.has(e.name)) continue
+      try {
+        const content = await readFile(join(hooksDir, e.name), "utf8")
+        if (content.startsWith(NIT_FINGERPRINT)) return true
+      } catch {
+        // skip unreadable files
+      }
+    }
+  } catch {
+    // skip if readdir fails
+  }
+  return false
+}
+
 export async function checkHooks(
-  hooks: Record<string, string>,
+  hooks: Record<string, HookDef>,
   hooksDir: string,
 ): SafeResult {
   try {
@@ -15,48 +62,14 @@ export async function checkHooks(
     return [new Error(`Hooks directory does not exist: ${hooksDir}`), null]
   }
 
-  // Check every configured hook is installed with the correct content
-  for (const [name, cmd] of Object.entries(hooks)) {
-    const hookPath = join(hooksDir, name)
-    if (!existsSync(hookPath)) {
-      return [null, false]
-    }
-
-    let content: string
-    try {
-      content = await readFile(hookPath, "utf8")
-    } catch (e) {
-      return [
-        e instanceof Error ? e : new Error(`Failed to read hook "${name}"`),
-        null,
-      ]
-    }
-
-    const lines = content.split("\n")
-    const hasCmd = lines.some((line) => line.trim() === cmd.trim())
-    if (!hasCmd) {
-      return [null, false]
-    }
+  for (const [name, def] of Object.entries(hooks)) {
+    const [err, ok] = await checkInstalledHook(name, def, hooksDir)
+    if (err !== null) return [err, null]
+    if (!ok) return [null, false]
   }
 
-  // Check for stale nit-owned hooks not in config
-  try {
-    const entries = await readdir(hooksDir, { withFileTypes: true })
-    const configuredNames = new Set(Object.keys(hooks))
-    for (const e of entries) {
-      if (!e.isFile() || configuredNames.has(e.name)) continue
-      const hookPath = join(hooksDir, e.name)
-      try {
-        const content = await readFile(hookPath, "utf8")
-        if (content.startsWith(NIT_FINGERPRINT)) {
-          return [null, false]
-        }
-      } catch {
-        // skip unreadable files
-      }
-    }
-  } catch {
-    // skip if readdir fails
+  if (await hasStaleHook(hooksDir, new Set(Object.keys(hooks)))) {
+    return [null, false]
   }
 
   return [null, true]

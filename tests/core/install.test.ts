@@ -93,4 +93,35 @@ describe("installHooks", () => {
     expect(content).toContain("bun run new")
     expect(content).not.toContain("bun run old")
   })
+
+  it("writes a staged hook script that delegates to nit exec", async () => {
+    const hooks = {
+      "pre-commit": {
+        stages: { "*.ts": "eslint --fix {staged_files}" },
+      },
+    }
+    const [err] = await installHooks(hooks, GIT_HOOKS)
+    expect(err).toBeNull()
+
+    const content = readFileSync(join(GIT_HOOKS, "pre-commit"), "utf8")
+    expect(content).toContain("#!/bin/sh")
+    expect(content).toContain("SKIP_NIT")
+    expect(content).toContain("./node_modules/.bin/nit exec pre-commit")
+    expect(content).not.toContain("eslint")
+  })
+
+  it("writes string and staged hook scripts side by side", async () => {
+    const hooks = {
+      "pre-commit": { stages: { "*.ts": "eslint {staged_files}" } },
+      "commit-msg": "bun test",
+    }
+    const [err] = await installHooks(hooks, GIT_HOOKS)
+    expect(err).toBeNull()
+
+    const preCommit = readFileSync(join(GIT_HOOKS, "pre-commit"), "utf8")
+    const commitMsg = readFileSync(join(GIT_HOOKS, "commit-msg"), "utf8")
+
+    expect(preCommit).toContain("./node_modules/.bin/nit exec pre-commit")
+    expect(commitMsg).toContain("bun test")
+  })
 })

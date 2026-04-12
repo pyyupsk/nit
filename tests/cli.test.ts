@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process"
 import {
   existsSync,
   mkdirSync,
@@ -6,6 +7,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { run } from "../src/cli"
@@ -186,6 +188,76 @@ describe("run (CLI dispatch)", () => {
     const code = await run(["check"], TMP)
 
     expect(code).toBe(1)
+  })
+})
+
+describe("exec", () => {
+  let tmpDir: string
+  let pkgPath: string
+  const logs = [] as string[]
+  const errors: string[] = []
+  const logger = {
+    log: (m: string) => {
+      logs.push(m)
+    },
+    error: (m: string) => {
+      errors.push(m)
+    },
+  }
+
+  beforeEach(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "nit-cli-exec-"))
+    pkgPath = join(tmpDir, "package.json")
+    logs.length = 0
+    errors.length = 0
+    execSync("git init", { cwd: tmpDir })
+    execSync('git config user.email "t@t.com"', { cwd: tmpDir })
+    execSync('git config user.name "T"', { cwd: tmpDir })
+  })
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it("returns 1 when no hook name is provided", async () => {
+    writeFileSync(pkgPath, JSON.stringify({ nit: { hooks: {} } }))
+    const code = await run(["exec"], tmpDir, logger)
+    expect(code).toBe(1)
+    expect(errors.some((e) => e.includes("exec requires a hook name"))).toBe(
+      true,
+    )
+  })
+
+  it("returns 1 when the hook is a string hook (not staged)", async () => {
+    writeFileSync(
+      pkgPath,
+      JSON.stringify({ nit: { hooks: { "pre-commit": "bun test" } } }),
+    )
+    const code = await run(["exec", "pre-commit"], tmpDir, logger)
+    expect(code).toBe(1)
+    expect(errors.some((e) => e.includes("not a staged hook"))).toBe(true)
+  })
+
+  it("returns 1 when the hook name does not exist in config", async () => {
+    writeFileSync(pkgPath, JSON.stringify({ nit: { hooks: {} } }))
+    const code = await run(["exec", "pre-commit"], tmpDir, logger)
+    expect(code).toBe(1)
+    expect(errors.some((e) => e.includes("not a staged hook"))).toBe(true)
+  })
+
+  it("returns 0 when staged hook runs with no staged files", async () => {
+    writeFileSync(
+      pkgPath,
+      JSON.stringify({
+        nit: {
+          hooks: {
+            "pre-commit": { stages: { "*.ts": "node --version" } },
+          },
+        },
+      }),
+    )
+    const code = await run(["exec", "pre-commit"], tmpDir, logger)
+    expect(code).toBe(0)
   })
 })
 

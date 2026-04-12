@@ -7,12 +7,13 @@ import {
   writeFile,
 } from "node:fs/promises"
 import { join } from "node:path"
+import type { HookDef } from "../utils/config"
 import { hookScript, NIT_FINGERPRINT } from "./hook-script"
 
 type SafeResult = Promise<[Error, null] | [null, true]>
 
 export async function installHooks(
-  hooks: Record<string, string>,
+  hooks: Record<string, HookDef>,
   hooksDir: string,
 ): SafeResult {
   try {
@@ -23,10 +24,10 @@ export async function installHooks(
 
   const written: string[] = []
 
-  for (const [name, cmd] of Object.entries(hooks)) {
+  for (const [name, hookDef] of Object.entries(hooks)) {
     const hookPath = join(hooksDir, name)
     try {
-      await writeFile(hookPath, hookScript(cmd), "utf8")
+      await writeFile(hookPath, hookScript(hookDef, name), "utf8")
       written.push(hookPath)
       await chmod(hookPath, 0o755)
     } catch (e) {

@@ -2,8 +2,9 @@
 import { join } from "node:path"
 import { checkHooks } from "./core/check"
 import { installHooks } from "./core/install"
+import { execStages } from "./core/stages"
 import { validateHooks } from "./core/validate"
-import { readConfig } from "./utils/config"
+import { type NitConfig, readConfig } from "./utils/config"
 import { findGitDir } from "./utils/git"
 
 type Logger = {
@@ -13,6 +14,72 @@ type Logger = {
 
 const silent: Logger = { log: () => {}, error: () => {} }
 
+async function runExec(
+  args: string[],
+  config: NitConfig,
+  cwd: string,
+  logger: Logger,
+): Promise<number> {
+  const hookName = args.at(1)
+  if (!hookName) {
+    logger.error("nit: exec requires a hook name")
+    return 1
+  }
+  const hookDef = config.hooks[hookName]
+  if (hookDef === undefined || typeof hookDef === "string") {
+    logger.error(`nit: "${hookName}" is not a staged hook`)
+    return 1
+  }
+  const [err] = await execStages(hookDef.stages, cwd)
+  if (err !== null) {
+    logger.error(`nit: ${err.message}`)
+    return 1
+  }
+  return 0
+}
+
+async function runCheck(
+  config: NitConfig,
+  hooksDir: string,
+  logger: Logger,
+): Promise<number> {
+  const [err, inSync] = await checkHooks(config.hooks, hooksDir)
+  if (err !== null) {
+    logger.error(`nit: ${err.message}`)
+    return 1
+  }
+  if (!inSync) {
+    logger.error("nit: hooks are out of sync — run `nit install` to fix")
+    return 1
+  }
+  logger.log("nit: hooks are up to date")
+  return 0
+}
+
+async function runInstall(
+  config: NitConfig,
+  hooksDir: string,
+  logger: Logger,
+): Promise<number> {
+  const validErr = validateHooks(config.hooks)
+  if (validErr !== null) {
+    logger.error(`nit: ${validErr.message}`)
+    return 1
+  }
+  const [installErr] = await installHooks(config.hooks, hooksDir)
+  if (installErr !== null) {
+    logger.error(`nit: ${installErr.message}`)
+    return 1
+  }
+  const hookNames = Object.keys(config.hooks)
+  logger.log(
+    hookNames.length === 0
+      ? "nit: no hooks configured"
+      : `nit: installed ${hookNames.join(", ")}`,
+  )
+  return 0
+}
+
 export async function run(
   args: string[],
   cwd: string,
@@ -20,9 +87,9 @@ export async function run(
 ): Promise<number> {
   const command = args.at(0) ?? "install"
 
-  if (!["install", "sync", "check"].includes(command)) {
+  if (!["install", "sync", "check", "exec"].includes(command)) {
     logger.error(`nit: unknown command "${command}"`)
-    logger.error("Usage: nit [install|sync|check]")
+    logger.error("Usage: nit [install|sync|check|exec]")
     return 1
   }
 
@@ -31,6 +98,8 @@ export async function run(
     logger.error(`nit: ${cfgErr.message}`)
     return 1
   }
+
+  if (command === "exec") return runExec(args, config, cwd, logger)
 
   const [gitErr, gitDir] = await findGitDir(cwd)
   if (gitErr !== null) {
@@ -41,40 +110,9 @@ export async function run(
 
   const hooksDir = join(gitDir, "hooks")
 
-  if (command === "check") {
-    const [err, inSync] = await checkHooks(config.hooks, hooksDir)
-    if (err !== null) {
-      logger.error(`nit: ${err.message}`)
-      return 1
-    }
-    if (!inSync) {
-      logger.error("nit: hooks are out of sync — run `nit install` to fix")
-      return 1
-    }
-    logger.log("nit: hooks are up to date")
-    return 0
-  }
+  if (command === "check") return runCheck(config, hooksDir, logger)
 
-  // install / sync
-  const validErr = validateHooks(config.hooks)
-  if (validErr !== null) {
-    logger.error(`nit: ${validErr.message}`)
-    return 1
-  }
-
-  const [installErr] = await installHooks(config.hooks, hooksDir)
-  if (installErr !== null) {
-    logger.error(`nit: ${installErr.message}`)
-    return 1
-  }
-
-  const hookNames = Object.keys(config.hooks)
-  if (hookNames.length === 0) {
-    logger.log("nit: no hooks configured")
-  } else {
-    logger.log(`nit: installed ${hookNames.join(", ")}`)
-  }
-  return 0
+  return runInstall(config, hooksDir, logger)
 }
 
 // Run when invoked directly as a binary (cli.js/cli.ts dev, or as `nit` bin)
@@ -84,7 +122,6 @@ const isMain =
 
 if (isMain) {
   const args = process.argv.slice(2)
-  run(args, process.cwd(), console).then((code) => {
-    process.exit(code)
-  })
+  const code = await run(args, process.cwd(), console)
+  process.exit(code)
 }

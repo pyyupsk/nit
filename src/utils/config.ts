@@ -1,11 +1,63 @@
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
 
-export type NitConfig = {
-  hooks: Record<string, string>
-}
+export type StageDef = Record<string, string>
+export type HookDef = string | { stages: StageDef }
+export type NitConfig = { hooks: Record<string, HookDef> }
 
 type SafeResult<T> = Promise<[Error, null] | [null, T]>
+
+function parseHookValue(
+  name: string,
+  value: unknown,
+): [Error, null] | [null, HookDef] {
+  if (typeof value === "string") {
+    return [null, value]
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.hasOwn(value as Record<string, unknown>, "stages")
+  ) {
+    const stages = (value as Record<string, unknown>).stages
+
+    if (
+      typeof stages !== "object" ||
+      stages === null ||
+      Array.isArray(stages)
+    ) {
+      return [
+        new Error(
+          `Hook "${name}" has invalid stages: stages must be a plain object`,
+        ),
+        null,
+      ]
+    }
+
+    const stagesObj = stages as Record<string, unknown>
+    for (const [pattern, cmd] of Object.entries(stagesObj)) {
+      if (typeof cmd !== "string") {
+        return [
+          new Error(
+            `Hook "${name}" stage "${pattern}" must have a string command, got ${typeof cmd}`,
+          ),
+          null,
+        ]
+      }
+    }
+
+    return [null, { stages: stagesObj as StageDef }]
+  }
+
+  return [
+    new Error(
+      `Hook "${name}" must be a string or a stages object, got ${typeof value}`,
+    ),
+    null,
+  ]
+}
 
 export async function readConfig(cwd: string): SafeResult<NitConfig> {
   const pkgPath = join(cwd, "package.json")
@@ -50,16 +102,15 @@ export async function readConfig(cwd: string): SafeResult<NitConfig> {
   }
 
   const hooksObj = hooks as Record<string, unknown>
-  for (const [name, cmd] of Object.entries(hooksObj)) {
-    if (typeof cmd !== "string") {
-      return [
-        new Error(
-          `Hook "${name}" must have a string command, got ${typeof cmd}`,
-        ),
-        null,
-      ]
+  const parsedHooks: Record<string, HookDef> = {}
+
+  for (const [name, value] of Object.entries(hooksObj)) {
+    const [err, hookDef] = parseHookValue(name, value)
+    if (err !== null) {
+      return [err, null]
     }
+    parsedHooks[name] = hookDef
   }
 
-  return [null, { hooks: hooksObj as Record<string, string> }]
+  return [null, { hooks: parsedHooks }]
 }

@@ -94,4 +94,90 @@ describe("readConfig", () => {
     expect(err?.message).toMatch(/pre-commit/)
     expect(config).toBeNull()
   })
+
+  it("parses a hook with stages", async () => {
+    const pkgPath = join(TMP, "package.json")
+    const tmpDir = TMP
+    writeFileSync(
+      pkgPath,
+      JSON.stringify({
+        nit: {
+          hooks: {
+            "pre-commit": {
+              stages: {
+                "*.ts": "eslint --fix {staged_files}",
+                "*.md": "prettier --write {staged_files}",
+              },
+            },
+          },
+        },
+      }),
+    )
+    const [err, config] = await readConfig(tmpDir)
+    expect(err).toBeNull()
+    expect(config?.hooks["pre-commit"]).toEqual({
+      stages: {
+        "*.ts": "eslint --fix {staged_files}",
+        "*.md": "prettier --write {staged_files}",
+      },
+    })
+  })
+
+  it("parses mixed string and staged hooks", async () => {
+    const pkgPath = join(TMP, "package.json")
+    const tmpDir = TMP
+    writeFileSync(
+      pkgPath,
+      JSON.stringify({
+        nit: {
+          hooks: {
+            "pre-commit": { stages: { "*.ts": "eslint {staged_files}" } },
+            "commit-msg": "bun test",
+          },
+        },
+      }),
+    )
+    const [err, config] = await readConfig(tmpDir)
+    expect(err).toBeNull()
+    expect(typeof config?.hooks["commit-msg"]).toBe("string")
+    expect(config?.hooks["pre-commit"]).toHaveProperty("stages")
+  })
+
+  it("returns error when stages value is not an object", async () => {
+    const pkgPath = join(TMP, "package.json")
+    const tmpDir = TMP
+    writeFileSync(
+      pkgPath,
+      JSON.stringify({
+        nit: { hooks: { "pre-commit": { stages: "bad" } } },
+      }),
+    )
+    const [err] = await readConfig(tmpDir)
+    expect(err).toBeInstanceOf(Error)
+    expect(err?.message).toContain("stages")
+  })
+
+  it("returns error when a stage command is not a string", async () => {
+    const pkgPath = join(TMP, "package.json")
+    const tmpDir = TMP
+    writeFileSync(
+      pkgPath,
+      JSON.stringify({
+        nit: { hooks: { "pre-commit": { stages: { "*.ts": 42 } } } },
+      }),
+    )
+    const [err] = await readConfig(tmpDir)
+    expect(err).toBeInstanceOf(Error)
+  })
+
+  it("returns error when hook value is not a string or stages object", async () => {
+    const pkgPath = join(TMP, "package.json")
+    const tmpDir = TMP
+    writeFileSync(
+      pkgPath,
+      JSON.stringify({ nit: { hooks: { "pre-commit": 123 } } }),
+    )
+    const [err] = await readConfig(tmpDir)
+    expect(err).toBeInstanceOf(Error)
+  })
 })

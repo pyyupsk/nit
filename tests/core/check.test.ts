@@ -90,4 +90,52 @@ describe("checkHooks", () => {
     expect(err).toBeNull()
     expect(inSync).toBe(false)
   })
+
+  it("returns true when a staged hook has the correct nit exec line", async () => {
+    const hookName = "pre-commit"
+    writeFileSync(
+      join(GIT_HOOKS, hookName),
+      `#!/bin/sh\nif [ "$SKIP_NIT" = "1" ]; then\n  exit 0\nfi\n./node_modules/.bin/nit exec ${hookName}\n`,
+    )
+    const [err, inSync] = await checkHooks(
+      { [hookName]: { stages: { "*.ts": "eslint {staged_files}" } } },
+      GIT_HOOKS,
+    )
+    expect(err).toBeNull()
+    expect(inSync).toBe(true)
+  })
+
+  it("returns false when a staged hook is missing the nit exec line", async () => {
+    const hookName = "pre-commit"
+    writeFileSync(
+      join(GIT_HOOKS, hookName),
+      `#!/bin/sh\nif [ "$SKIP_NIT" = "1" ]; then\n  exit 0\nfi\neslint --fix\n`,
+    )
+    const [err, inSync] = await checkHooks(
+      { [hookName]: { stages: { "*.ts": "eslint {staged_files}" } } },
+      GIT_HOOKS,
+    )
+    expect(err).toBeNull()
+    expect(inSync).toBe(false)
+  })
+
+  it("returns true for mixed string and staged hooks both correctly installed", async () => {
+    writeFileSync(
+      join(GIT_HOOKS, "pre-commit"),
+      `#!/bin/sh\nif [ "$SKIP_NIT" = "1" ]; then\n  exit 0\nfi\n./node_modules/.bin/nit exec pre-commit\n`,
+    )
+    writeFileSync(
+      join(GIT_HOOKS, "commit-msg"),
+      `#!/bin/sh\nif [ "$SKIP_NIT" = "1" ]; then\n  exit 0\nfi\nbun test\n`,
+    )
+    const [err, inSync] = await checkHooks(
+      {
+        "pre-commit": { stages: { "*.ts": "eslint {staged_files}" } },
+        "commit-msg": "bun test",
+      },
+      GIT_HOOKS,
+    )
+    expect(err).toBeNull()
+    expect(inSync).toBe(true)
+  })
 })
