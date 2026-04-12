@@ -21,7 +21,7 @@
     "dev": "tsup --watch",
     "format": "biome format --write .",
     "knip": "knip",
-    "prepare": "bun run ./src/cli.ts install",
+    "prepare": "bun run build && ln -sf ../../dist/cli.js node_modules/.bin/nit && bun run ./src/cli.ts install",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
