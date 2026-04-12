@@ -3,7 +3,7 @@ import { readdir, readFile, stat } from "node:fs/promises"
 import { join } from "node:path"
 import type { HookDef } from "../utils/config"
 import { safe } from "../utils/safe"
-import { NIT_FINGERPRINT, nitExecCmd } from "./hook-script"
+import { nitExecCmd, SKIP_NIT_HEADER } from "./hook-script"
 
 type SafeResult = Promise<[Error, null] | [null, boolean]>
 
@@ -35,7 +35,7 @@ async function hasStaleHook(
       if (!e.isFile() || configuredNames.has(e.name)) continue
       try {
         const content = await readFile(join(hooksDir, e.name), "utf8")
-        if (content.startsWith(NIT_FINGERPRINT)) return true
+        if (content.startsWith(SKIP_NIT_HEADER)) return true
       } catch {
         // skip unreadable files
       }

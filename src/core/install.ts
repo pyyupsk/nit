@@ -8,7 +8,7 @@ import {
 } from "node:fs/promises"
 import { join } from "node:path"
 import type { HookDef } from "../utils/config"
-import { hookScript, NIT_FINGERPRINT } from "./hook-script"
+import { hookScript, SKIP_NIT_HEADER } from "./hook-script"
 
 type SafeResult = Promise<[Error, null] | [null, true]>
 
@@ -50,7 +50,7 @@ export async function installHooks(
           const hookPath = join(hooksDir, e.name)
           try {
             const content = await readFile(hookPath, "utf8")
-            if (content.startsWith(NIT_FINGERPRINT)) {
+            if (content.startsWith(SKIP_NIT_HEADER)) {
               await unlink(hookPath)
             }
           } catch {

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { findGitDir } from "../../src/utils/git"
@@ -29,6 +29,32 @@ describe("findGitDir", () => {
     mkdirSync(nested, { recursive: true })
 
     const [err, gitDir] = await findGitDir(nested)
+
+    expect(err).toBeNull()
+    expect(gitDir).toBe(join(TMP, ".git"))
+  })
+
+  it("resolves the actual git dir when .git is a gitdir file", async () => {
+    const actualGitDir = join(TMP, ".git-worktrees", "feature")
+    mkdirSync(actualGitDir, { recursive: true })
+    writeFileSync(
+      join(TMP, ".git"),
+      `gitdir: ${join(".git-worktrees", "feature")}\n`,
+    )
+
+    const [err, gitDir] = await findGitDir(TMP)
+
+    expect(err).toBeNull()
+    expect(gitDir).toBe(actualGitDir)
+  })
+
+  it("starts from a file path by walking from its parent directory", async () => {
+    mkdirSync(join(TMP, ".git"))
+    const file = join(TMP, "src", "index.ts")
+    mkdirSync(join(TMP, "src"), { recursive: true })
+    writeFileSync(file, "export {}")
+
+    const [err, gitDir] = await findGitDir(file)
 
     expect(err).toBeNull()
     expect(gitDir).toBe(join(TMP, ".git"))
