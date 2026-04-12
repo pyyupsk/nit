@@ -37,7 +37,12 @@
   },
   "nit": {
     "hooks": {
-      "pre-commit": "bun format && bun check && bun typecheck && bun test && bun run build"
+      "pre-commit": {
+        "stages": {
+          "**/*.{ts,json}": "biome check --write {staged_files}"
+        }
+      },
+      "pre-push": "bun typecheck && bun test && bun run build"
     }
   }
 }
