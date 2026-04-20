@@ -17,7 +17,8 @@
   ],
   "scripts": {
     "build": "tsup",
-    "check": "biome check --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
     "dev": "tsup --watch",
     "format": "biome format --write .",
     "knip": "knip",
