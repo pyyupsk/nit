@@ -61,7 +61,7 @@ function shellEscape(value: string): string {
       .replaceAll("(", "^(")
       .replaceAll(")", "^)")
       .replaceAll("%", "%%")
-      .replaceAll("!", "^!")}`
+      .replaceAll("!", "^!")}"`
   }
 
   return `'${value.replaceAll("'", "'\"'\"'")}'`

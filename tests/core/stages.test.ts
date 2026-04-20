@@ -210,11 +210,16 @@ describe("execStages", () => {
 
   it("supports shell operators in stage commands", async () => {
     const outputFile = join(tmpDir, "shell.txt")
+    const okScript = join(tmpDir, "ok.cjs")
+    const writeScript = join(tmpDir, "write.cjs")
+    writeFileSync(okScript, "process.stdout.write('ok')")
+    writeFileSync(
+      writeScript,
+      `require('fs').writeFileSync(${JSON.stringify(outputFile)}, 'done')`,
+    )
 
     const [err, result] = await execStages(
-      {
-        "*.ts": `node -e "process.stdout.write('ok')" && node -e "require('fs').writeFileSync('${outputFile}','done')"`,
-      },
+      { "*.ts": `node ${okScript} && node ${writeScript}` },
       tmpDir,
     )
 
