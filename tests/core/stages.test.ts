@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process"
+import { execFileSync, execSync } from "node:child_process"
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -9,6 +9,12 @@ import {
   globToRegex,
   matchGlob,
 } from "../../src/core/stages"
+
+function initGitRepo(dir: string): void {
+  execSync("git init", { cwd: dir })
+  execSync('git config user.email "t@t.com"', { cwd: dir })
+  execSync('git config user.name "T"', { cwd: dir })
+}
 
 describe("globToRegex", () => {
   it("matches exact filenames", () => {
@@ -72,9 +78,7 @@ describe("getStagedFiles", () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), "nit-stages-"))
-    execSync("git init", { cwd: tmpDir })
-    execSync('git config user.email "t@t.com"', { cwd: tmpDir })
-    execSync('git config user.name "T"', { cwd: tmpDir })
+    initGitRepo(tmpDir)
   })
 
   afterEach(() => {
@@ -106,6 +110,18 @@ describe("getStagedFiles", () => {
     expect(files).toContain("staged.ts")
     expect(files).not.toContain("unstaged.ts")
   })
+
+  it("returns staged file names with spaces without git quoting artifacts", async () => {
+    const spaced = "my cool file.ts"
+    writeFileSync(join(tmpDir, spaced), "const x = 1")
+    execFileSync("git", ["add", "--", spaced], { cwd: tmpDir })
+
+    const [err, files] = await getStagedFiles(tmpDir)
+
+    expect(err).toBeNull()
+    expect(files).toContain(spaced)
+    expect(files).not.toContain(`"${spaced}"`)
+  })
 })
 
 describe("execStages", () => {
@@ -113,9 +129,7 @@ describe("execStages", () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), "nit-exec-"))
-    execSync("git init", { cwd: tmpDir })
-    execSync('git config user.email "t@t.com"', { cwd: tmpDir })
-    execSync('git config user.name "T"', { cwd: tmpDir })
+    initGitRepo(tmpDir)
     writeFileSync(join(tmpDir, "foo.ts"), "const x = 1")
     writeFileSync(join(tmpDir, "bar.md"), "# hello")
     execSync("git add foo.ts bar.md", { cwd: tmpDir })
@@ -128,9 +142,7 @@ describe("execStages", () => {
   it("returns [null, true] when no staged files exist", async () => {
     const emptyDir = mkdtempSync(join(tmpdir(), "nit-empty-"))
     try {
-      execSync("git init", { cwd: emptyDir })
-      execSync('git config user.email "t@t.com"', { cwd: emptyDir })
-      execSync('git config user.name "T"', { cwd: emptyDir })
+      initGitRepo(emptyDir)
       const [err, result] = await execStages(
         { "*.ts": "node --version" },
         emptyDir,
@@ -194,5 +206,47 @@ describe("execStages", () => {
     )
     expect(err).toBeInstanceOf(Error)
     expect(() => readFileSync(touchFile, "utf8")).toThrow()
+  })
+
+  it("supports shell operators in stage commands", async () => {
+    const outputFile = join(tmpDir, "shell.txt")
+    const okScript = join(tmpDir, "ok.cjs")
+    const writeScript = join(tmpDir, "write.cjs")
+    writeFileSync(okScript, "process.stdout.write('ok')")
+    writeFileSync(
+      writeScript,
+      `require('fs').writeFileSync(${JSON.stringify(outputFile)}, 'done')`,
+    )
+
+    const [err, result] = await execStages(
+      { "*.ts": `node ${okScript} && node ${writeScript}` },
+      tmpDir,
+    )
+
+    expect(err).toBeNull()
+    expect(result).toBe(true)
+    expect(readFileSync(outputFile, "utf8")).toBe("done")
+  })
+
+  it("passes staged files with spaces through {staged_files}", async () => {
+    const spaced = "my cool file.ts"
+    const scriptFile = join(tmpDir, "capture-space.cjs")
+    const argsFile = join(tmpDir, "space-args.txt")
+
+    writeFileSync(join(tmpDir, spaced), "const spaced = true")
+    execFileSync("git", ["add", "--", spaced], { cwd: tmpDir })
+    writeFileSync(
+      scriptFile,
+      "const fs=require('fs'); fs.writeFileSync(process.argv[2], JSON.stringify(process.argv.slice(3)))",
+    )
+
+    const [err, result] = await execStages(
+      { "*.ts": `node ${scriptFile} ${argsFile} {staged_files}` },
+      tmpDir,
+    )
+
+    expect(err).toBeNull()
+    expect(result).toBe(true)
+    expect(JSON.parse(readFileSync(argsFile, "utf8"))).toContain(spaced)
   })
 })

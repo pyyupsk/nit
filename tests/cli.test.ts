@@ -262,7 +262,7 @@ describe("exec", () => {
 })
 
 describe("hookScript fingerprint contract", () => {
-  it("generated hook script starts with NIT_FINGERPRINT", async () => {
+  it("generated hook script starts with SKIP_NIT_HEADER", async () => {
     await run(["install"], TMP)
     const content = readFileSync(join(GIT_HOOKS, "pre-commit"), "utf8")
     expect(content.startsWith('#!/bin/sh\nif [ "$SKIP_NIT"')).toBe(true)

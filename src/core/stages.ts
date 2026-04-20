@@ -50,33 +50,27 @@ export function matchGlob(filepath: string, pattern: string): boolean {
   return re.test(file) || re.test(basename)
 }
 
-function tokenize(command: string): string[] {
-  const tokens: string[] = []
-  let current = ""
-  let i = 0
-  while (i < command.length) {
-    const ch = command.charAt(i)
-    if (ch === '"' || ch === "'") {
-      const quote = ch
-      i++
-      while (i < command.length && command.charAt(i) !== quote) {
-        current += command.charAt(i)
-        i++
-      }
-      i++
-    } else if (/\s/.test(ch)) {
-      if (current.length > 0) {
-        tokens.push(current)
-        current = ""
-      }
-      i++
-    } else {
-      current += ch
-      i++
-    }
+function shellEscape(value: string): string {
+  if (process.platform === "win32") {
+    return `"${value
+      .replaceAll("^", "^^")
+      .replaceAll("&", "^&")
+      .replaceAll("|", "^|")
+      .replaceAll("<", "^<")
+      .replaceAll(">", "^>")
+      .replaceAll("(", "^(")
+      .replaceAll(")", "^)")
+      .replaceAll("%", "%%")
+      .replaceAll("!", "^!")}"`
   }
-  if (current.length > 0) tokens.push(current)
-  return tokens
+
+  return `'${value.replaceAll("'", "'\"'\"'")}'`
+}
+
+function expandCommand(command: string, files: string[]): string {
+  if (!command.includes(STAGED_FILES)) return command
+  const escapedFiles = files.map(shellEscape).join(" ")
+  return command.replaceAll(STAGED_FILES, escapedFiles)
 }
 
 function runCommand(
@@ -85,17 +79,16 @@ function runCommand(
   cwd: string,
 ): Promise<Error | null> {
   return new Promise((resolve) => {
-    const args: string[] = []
-    for (const part of tokenize(command)) {
-      if (part === STAGED_FILES) {
-        args.push(...files)
-      } else {
-        args.push(part)
-      }
+    const expandedCommand = expandCommand(command, files)
+    if (expandedCommand.trim().length === 0) {
+      return resolve(new Error(`Empty command in stage: "${command}"`))
     }
-    const [bin, ...rest] = args
-    if (!bin) return resolve(new Error(`Empty command in stage: "${command}"`))
-    const child = spawn(bin, rest, { cwd, stdio: "inherit" })
+
+    const child = spawn(expandedCommand, {
+      cwd,
+      shell: true,
+      stdio: "inherit",
+    })
     child.on("close", (code) =>
       resolve(
         code === 0
@@ -113,14 +106,19 @@ export function getStagedFiles(
   return new Promise((resolve) => {
     const child = spawn(
       "git",
-      ["diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+      ["diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR"],
       { cwd, stdio: ["ignore", "pipe", "ignore"] },
     )
-    let stdout = ""
+    const stdout: Buffer[] = []
     child.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString()
+      stdout.push(chunk)
     })
-    child.on("close", () => resolve([null, stdout.split("\n").filter(Boolean)]))
+    child.on("close", () =>
+      resolve([
+        null,
+        Buffer.concat(stdout).toString("utf8").split("\0").filter(Boolean),
+      ]),
+    )
     child.on("error", (e) => resolve([e, null]))
   })
 }
