@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 
-// build
 const build = spawnSync("bun", ["run", "build"], {
   cwd: root,
   stdio: "inherit",
@@ -25,10 +24,3 @@ function link(target: string, dest: string) {
 
 link(join(root, "dist/cli.js"), join(root, "node_modules/.bin/nit"))
 link(join(root, "dist/cli.js"), join(root, "../../node_modules/.bin/nit"))
-
-// install git hooks
-const install = spawnSync("bun", ["run", "./src/cli.ts", "install"], {
-  cwd: root,
-  stdio: "inherit",
-})
-if (install.status !== 0) process.exit(install.status ?? 1)
