@@ -29,9 +29,20 @@ link(join(root, "dist/cli.js"), localBin)
 link(join(root, "dist/cli.js"), rootBin)
 
 // run nit install from monorepo root so it reads root package.json hooks config
+// use bun + dist/cli.js directly to avoid symlink dependency on Windows
 const gitRoot = join(root, "../..")
-const install = spawnSync(rootBin, ["install"], {
-  cwd: gitRoot,
-  stdio: "inherit",
-})
+const pathSep = process.platform === "win32" ? ";" : ":"
+const nodeBin = join(gitRoot, "node_modules", ".bin")
+const install = spawnSync(
+  "bun",
+  ["run", join(root, "dist/cli.js"), "install"],
+  {
+    cwd: gitRoot,
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      PATH: `${nodeBin}${pathSep}${process.env.PATH ?? ""}`,
+    },
+  },
+)
 if (install.status !== 0) process.exit(install.status ?? 1)
