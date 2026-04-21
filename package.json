@@ -7,7 +7,6 @@
   ],
   "scripts": {
     "build": "turbo run build",
-    "prepare": "./node_modules/.bin/nit install",
     "check": "turbo run check",
     "format": "turbo run format",
     "test": "turbo run test",

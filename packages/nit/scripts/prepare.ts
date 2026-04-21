@@ -22,5 +22,13 @@ function link(target: string, dest: string) {
   }
 }
 
-link(join(root, "dist/cli.js"), join(root, "node_modules/.bin/nit"))
-link(join(root, "dist/cli.js"), join(root, "../../node_modules/.bin/nit"))
+const localBin = join(root, "node_modules/.bin/nit")
+const rootBin = join(root, "../../node_modules/.bin/nit")
+
+link(join(root, "dist/cli.js"), localBin)
+link(join(root, "dist/cli.js"), rootBin)
+
+// run nit install from monorepo root so it reads root package.json hooks config
+const gitRoot = join(root, "../..")
+const install = spawnSync(rootBin, ["install"], { cwd: gitRoot, stdio: "inherit" })
+if (install.status !== 0) process.exit(install.status ?? 1)
