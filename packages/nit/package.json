@@ -3,6 +3,16 @@
   "version": "0.3.0",
   "description": "Lightweight zero-dependency Git hooks manager for JavaScript/Node.js projects",
   "license": "MIT",
+  "author": "Pongsakorn Thipayanate <pthipayanate@gmail.com>",
+  "homepage": "https://github.com/pyyupsk/nit#readme",
+  "bugs": {
+    "url": "https://github.com/pyyupsk/nit/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pyyupsk/nit.git",
+    "directory": "packages/nit"
+  },
   "packageManager": "bun@1.3.11",
   "type": "module",
   "main": "dist/cli.js",
