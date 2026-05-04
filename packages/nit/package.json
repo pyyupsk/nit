@@ -1,6 +1,6 @@
 {
   "name": "@pyyupsk/nit",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Lightweight zero-dependency Git hooks manager for JavaScript/Node.js projects",
   "license": "MIT",
   "author": "Pongsakorn Thipayanate <pthipayanate@gmail.com>",
