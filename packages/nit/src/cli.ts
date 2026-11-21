@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-import { join } from "node:path"
 import { checkHooks } from "./core/check"
 import { installHooks } from "./core/install"
 import { execStages } from "./core/stages"
 import { validateHooks } from "./core/validate"
 import { type NitConfig, readConfig } from "./utils/config"
-import { findGitDir } from "./utils/git"
+import { findGitDir, hooksDirOf } from "./utils/git"
 
 type Logger = {
   log: (msg: string) => void
@@ -109,7 +108,7 @@ export async function run(
     return 1
   }
 
-  const hooksDir = join(gitDir, "hooks")
+  const hooksDir = await hooksDirOf(gitDir)
 
   if (command === "check") return runCheck(config, hooksDir, logger)
 
