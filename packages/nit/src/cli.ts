@@ -29,7 +29,7 @@ async function runExec(
     logger.error(`nit: "${hookName}" is not a staged hook`)
     return 1
   }
-  const [err] = await execStages(hookDef.stages, cwd)
+  const [err] = await execStages(hookDef.stages, cwd, logger.error)
   if (err !== null) {
     logger.error(`nit: ${err.message}`)
     return 1

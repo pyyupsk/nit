@@ -170,6 +170,49 @@ describe("readConfig", () => {
     expect(err).toBeInstanceOf(Error)
   })
 
+  it("parses a stage object with command and restage", async () => {
+    writePkg({
+      nit: {
+        hooks: {
+          "pre-commit": {
+            stages: {
+              "*.ts": { command: "oxfmt {staged_files}", restage: true },
+            },
+          },
+        },
+      },
+    })
+    const [err, config] = await readConfig(TMP)
+    expect(err).toBeNull()
+    expect(config?.hooks["pre-commit"]).toEqual({
+      stages: { "*.ts": { command: "oxfmt {staged_files}", restage: true } },
+    })
+  })
+
+  it("returns error when a stage object has no string command", async () => {
+    writePkg({
+      nit: {
+        hooks: { "pre-commit": { stages: { "*.ts": { restage: true } } } },
+      },
+    })
+    const [err] = await readConfig(TMP)
+    expect(err?.message).toContain('stage "*.ts"')
+  })
+
+  it("returns error when restage is not a boolean", async () => {
+    writePkg({
+      nit: {
+        hooks: {
+          "pre-commit": {
+            stages: { "*.ts": { command: "x", restage: "yes" } },
+          },
+        },
+      },
+    })
+    const [err] = await readConfig(TMP)
+    expect(err?.message).toContain("restage")
+  })
+
   it("returns error when hook value is not a string or stages object", async () => {
     const pkgPath = join(TMP, "package.json")
     const tmpDir = TMP

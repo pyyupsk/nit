@@ -85,6 +85,19 @@ describe("validateHooks", () => {
     expect(plainErr).toBeInstanceOf(Error)
   })
 
+  it("validates the command of a stage object", () => {
+    const ok = validateHooks({
+      "pre-commit": {
+        stages: { "*.ts": { command: "node -v", restage: true } },
+      },
+    })
+    const bad = validateHooks({
+      "pre-commit": { stages: { "*.ts": { command: "nonexistent-xyz-tool" } } },
+    })
+    expect(ok).toBeNull()
+    expect(bad?.message).toContain("nonexistent-xyz-tool")
+  })
+
   it("returns error when a stage command binary is not in PATH", () => {
     const result = validateHooks({
       "pre-commit": {

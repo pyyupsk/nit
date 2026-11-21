@@ -37,7 +37,8 @@ export function validateHooks(
       const err = validateCommand(hookName, def, pathDirs)
       if (err !== null) return err
     } else {
-      for (const [pattern, cmd] of Object.entries(def.stages)) {
+      for (const [pattern, stage] of Object.entries(def.stages)) {
+        const cmd = typeof stage === "string" ? stage : stage.command
         const err = validateCommand(`${hookName}[${pattern}]`, cmd, stageDirs)
         if (err !== null) return err
       }
