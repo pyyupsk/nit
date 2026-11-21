@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.11",
-    "turbo": "latest"
+    "turbo": "^2.9.8"
   },
   "nit": {
     "hooks": {
