@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { describe, expect, it } from "vitest"
 import { validateHooks } from "../../src/core/validate"
 
@@ -62,6 +65,24 @@ describe("validateHooks", () => {
       },
     })
     expect(result).toBeNull()
+  })
+
+  it("finds stage commands in <cwd>/node_modules/.bin", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "nit-validate-"))
+    const bin = join(cwd, "node_modules", ".bin")
+    mkdirSync(bin, { recursive: true })
+    writeFileSync(join(bin, "local-tool-xyz.cmd"), "")
+    writeFileSync(join(bin, "local-tool-xyz"), "")
+
+    const stageErr = validateHooks(
+      { "pre-commit": { stages: { "*.ts": "local-tool-xyz" } } },
+      cwd,
+    )
+    const plainErr = validateHooks({ "pre-push": "local-tool-xyz" }, cwd)
+    rmSync(cwd, { recursive: true, force: true })
+
+    expect(stageErr).toBeNull()
+    expect(plainErr).toBeInstanceOf(Error)
   })
 
   it("returns error when a stage command binary is not in PATH", () => {

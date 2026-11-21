@@ -61,13 +61,12 @@ describe("installHooks", () => {
     expect(err).toBeNull()
   })
 
-  it("returns an error when the hooks directory does not exist", async () => {
-    const [err] = await installHooks(
-      { "pre-commit": "bun run lint" },
-      join(TMP, "nonexistent", "hooks"),
-    )
+  it("creates the hooks directory when it does not exist", async () => {
+    const hooksDir = join(TMP, "nonexistent", "hooks")
+    const [err] = await installHooks({ "pre-commit": "bun run lint" }, hooksDir)
 
-    expect(err).toBeInstanceOf(Error)
+    expect(err).toBeNull()
+    expect(existsSync(join(hooksDir, "pre-commit"))).toBe(true)
   })
 
   it("rolls back written hooks when a later write fails", async () => {

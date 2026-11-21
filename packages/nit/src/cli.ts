@@ -59,9 +59,10 @@ async function runCheck(
 async function runInstall(
   config: NitConfig,
   hooksDir: string,
+  cwd: string,
   logger: Logger,
 ): Promise<number> {
-  const validErr = validateHooks(config.hooks)
+  const validErr = validateHooks(config.hooks, cwd)
   if (validErr !== null) {
     logger.error(`nit: ${validErr.message}`)
     return 1
@@ -112,7 +113,7 @@ export async function run(
 
   if (command === "check") return runCheck(config, hooksDir, logger)
 
-  return runInstall(config, hooksDir, logger)
+  return runInstall(config, hooksDir, cwd, logger)
 }
 
 // Run when invoked directly as a binary (cli.js/cli.ts dev, or as `nit` bin)
