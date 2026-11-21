@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { findGitDir } from "../../src/utils/git"
+import { findGitDir, hooksDirOf } from "../../src/utils/git"
 
 const TMP = join(import.meta.dirname, "__tmp_git__")
 
@@ -80,5 +80,21 @@ describe("findGitDir", () => {
 
     expect(err).toBeInstanceOf(Error)
     expect(gitDir).toBeNull()
+  })
+})
+
+describe("hooksDirOf", () => {
+  it("returns <gitDir>/hooks for a normal repository", async () => {
+    mkdirSync(join(TMP, ".git"))
+
+    expect(await hooksDirOf(join(TMP, ".git"))).toBe(join(TMP, ".git", "hooks"))
+  })
+
+  it("returns the main repository hooks for a linked worktree", async () => {
+    const wtGitDir = join(TMP, ".git", "worktrees", "wt")
+    mkdirSync(wtGitDir, { recursive: true })
+    writeFileSync(join(wtGitDir, "commondir"), "../..\n")
+
+    expect(await hooksDirOf(wtGitDir)).toBe(join(TMP, ".git", "hooks"))
   })
 })

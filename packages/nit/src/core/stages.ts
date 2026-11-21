@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process"
+import { delimiter, join } from "node:path"
 
 const STAGED_FILES = "{staged_files}"
 
@@ -73,6 +74,11 @@ function expandCommand(command: string, files: string[]): string {
   return command.replaceAll(STAGED_FILES, escapedFiles)
 }
 
+// Stage commands resolve local binaries like `npm run` does
+export function localBinDir(cwd: string): string {
+  return join(cwd, "node_modules", ".bin")
+}
+
 function runCommand(
   command: string,
   files: string[],
@@ -84,8 +90,19 @@ function runCommand(
       return resolve(new Error(`Empty command in stage: "${command}"`))
     }
 
+    // Windows env keys are case-insensitive and usually "Path": reuse that key
+    // so the spread env does not end up with two PATH entries
+    const pathKey =
+      process.platform === "win32"
+        ? (Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ??
+          "Path")
+        : "PATH"
     const child = spawn(expandedCommand, {
       cwd,
+      env: {
+        ...process.env,
+        [pathKey]: `${localBinDir(cwd)}${delimiter}${process.env[pathKey] ?? ""}`,
+      },
       shell: true,
       stdio: "inherit",
     })

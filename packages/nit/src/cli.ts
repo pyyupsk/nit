@@ -1,11 +1,10 @@
 #!/usr/bin/env node
-import { join } from "node:path"
 import { checkHooks } from "./core/check"
 import { installHooks } from "./core/install"
 import { execStages } from "./core/stages"
 import { validateHooks } from "./core/validate"
 import { type NitConfig, readConfig } from "./utils/config"
-import { findGitDir } from "./utils/git"
+import { findGitDir, hooksDirOf } from "./utils/git"
 
 type Logger = {
   log: (msg: string) => void
@@ -59,9 +58,10 @@ async function runCheck(
 async function runInstall(
   config: NitConfig,
   hooksDir: string,
+  cwd: string,
   logger: Logger,
 ): Promise<number> {
-  const validErr = validateHooks(config.hooks)
+  const validErr = validateHooks(config.hooks, cwd)
   if (validErr !== null) {
     logger.error(`nit: ${validErr.message}`)
     return 1
@@ -108,11 +108,11 @@ export async function run(
     return 1
   }
 
-  const hooksDir = join(gitDir, "hooks")
+  const hooksDir = await hooksDirOf(gitDir)
 
   if (command === "check") return runCheck(config, hooksDir, logger)
 
-  return runInstall(config, hooksDir, logger)
+  return runInstall(config, hooksDir, cwd, logger)
 }
 
 // Run when invoked directly as a binary (cli.js/cli.ts dev, or as `nit` bin)

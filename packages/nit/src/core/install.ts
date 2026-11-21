@@ -1,8 +1,8 @@
 import {
   chmod,
+  mkdir,
   readdir,
   readFile,
-  stat,
   unlink,
   writeFile,
 } from "node:fs/promises"
@@ -17,9 +17,12 @@ export async function installHooks(
   hooksDir: string,
 ): SafeResult {
   try {
-    await stat(hooksDir)
-  } catch {
-    return [new Error(`Hooks directory does not exist: ${hooksDir}`), null]
+    await mkdir(hooksDir, { recursive: true })
+  } catch (e) {
+    return [
+      e instanceof Error ? e : new Error(`Cannot create ${hooksDir}`),
+      null,
+    ]
   }
 
   const written: string[] = []
