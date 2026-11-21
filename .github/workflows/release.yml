@@ -29,8 +29,11 @@ jobs:
       - name: Build
         run: bun run build
 
+      - name: Add README and LICENSE to the package
+        run: cp README.md LICENSE packages/nit/
+
       - name: Publish to npm
-        run: npm publish packages/nit
+        run: npm publish ./packages/nit
 
   release:
     name: Create GitHub Release
