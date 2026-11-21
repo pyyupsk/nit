@@ -2,6 +2,18 @@
   "name": "@pyyupsk/nit",
   "version": "0.3.2",
   "description": "Lightweight zero-dependency Git hooks manager for JavaScript/Node.js projects",
+  "keywords": [
+    "git",
+    "git-hooks",
+    "hooks",
+    "pre-commit",
+    "pre-push",
+    "lint-staged",
+    "husky",
+    "staged-files",
+    "zero-dependency",
+    "cli"
+  ],
   "license": "MIT",
   "author": "Pongsakorn Thipayanate <pthipayanate@gmail.com>",
   "homepage": "https://github.com/pyyupsk/nit#readme",
