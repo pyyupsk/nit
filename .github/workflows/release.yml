@@ -30,7 +30,7 @@ jobs:
         run: bun run build
 
       - name: Publish to npm
-        run: npm publish packages/nit
+        run: npm publish ./packages/nit
 
   release:
     name: Create GitHub Release
