@@ -1,6 +1,6 @@
 {
   "name": "@pyyupsk/nit",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Lightweight zero-dependency Git hooks manager for JavaScript/Node.js projects",
   "keywords": [
     "git",
