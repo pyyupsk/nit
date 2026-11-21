@@ -67,6 +67,20 @@ Instead of a plain command string, a hook can be defined as a `stages` object. E
 
 Stages only run when at least one staged file matches the pattern. If no files match a stage, that stage is skipped entirely. Commands without `{staged_files}` run as-is (useful for project-wide checks triggered by any staged file).
 
+Stage commands find binaries in `node_modules/.bin`, so `"biome check {staged_files}"` works without `./node_modules/.bin/`.
+
+#### Restage fixed files
+
+If a stage command fixes files, the fixes stay in the working tree and the commit gets the unfixed version. Set `restage: true` to stage the fixes after the command passes:
+
+```json
+"stages": {
+  "**/*.{ts,js}": { "command": "biome check --write {staged_files}", "restage": true }
+}
+```
+
+nit restages only the matched files that the command changed. A partially staged file contains unstaged edits before the command runs. nit does not restage such a file, and it prints a warning. This keeps your unstaged edits out of the commit.
+
 ## CLI
 
 ```sh

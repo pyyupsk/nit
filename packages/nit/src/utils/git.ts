@@ -90,8 +90,7 @@ async function tryResolveGitDir(
   }
 }
 
-// A linked worktree's git dir points at the shared repo through `commondir`,
-// and git only runs hooks from the shared repo's hooks dir.
+// git runs a linked worktree's hooks from the shared repo named in `commondir`
 export async function hooksDirOf(gitDir: string): Promise<string> {
   try {
     const commonDir = await readFile(join(gitDir, "commondir"), "utf8")

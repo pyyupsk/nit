@@ -1,11 +1,32 @@
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
 
-export type StageDef = Record<string, string>
+type StageCommand = string | { command: string; restage?: boolean }
+export type StageDef = Record<string, StageCommand>
 export type HookDef = string | { stages: StageDef }
 export type NitConfig = { hooks: Record<string, HookDef> }
 
 type SafeResult<T> = Promise<[Error, null] | [null, T]>
+
+function checkStageCommand(
+  name: string,
+  pattern: string,
+  cmd: unknown,
+): Error | null {
+  if (typeof cmd === "string") return null
+  const where = `Hook "${name}" stage "${pattern}"`
+  if (typeof cmd !== "object" || cmd === null || Array.isArray(cmd)) {
+    return new Error(`${where} must have a string command, got ${typeof cmd}`)
+  }
+  const { command, restage } = cmd as Record<string, unknown>
+  if (typeof command !== "string") {
+    return new Error(`${where} must have a string "command"`)
+  }
+  if (restage !== undefined && typeof restage !== "boolean") {
+    return new Error(`${where} "restage" must be a boolean`)
+  }
+  return null
+}
 
 function parseHookValue(
   name: string,
@@ -38,14 +59,8 @@ function parseHookValue(
 
     const stagesObj = stages as Record<string, unknown>
     for (const [pattern, cmd] of Object.entries(stagesObj)) {
-      if (typeof cmd !== "string") {
-        return [
-          new Error(
-            `Hook "${name}" stage "${pattern}" must have a string command, got ${typeof cmd}`,
-          ),
-          null,
-        ]
-      }
+      const err = checkStageCommand(name, pattern, cmd)
+      if (err !== null) return [err, null]
     }
 
     return [null, { stages: stagesObj as StageDef }]

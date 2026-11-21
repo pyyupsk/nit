@@ -247,6 +247,51 @@ describe("execStages", () => {
     expect(readFileSync(outputFile, "utf8")).toBe("done")
   })
 
+  describe("restage", () => {
+    const fixer = () => {
+      const script = join(tmpDir, "fix.cjs")
+      writeFileSync(
+        script,
+        "for (const f of process.argv.slice(2)) require('fs').appendFileSync(f, '\\n// fixed')",
+      )
+      return `node ${JSON.stringify(script)} {staged_files}`
+    }
+    const stagedContent = (file: string) =>
+      execFileSync("git", ["show", `:${file}`], { cwd: tmpDir }).toString()
+
+    it("stages the fixes when restage is true", async () => {
+      const [err] = await execStages(
+        { "*.ts": { command: fixer(), restage: true } },
+        tmpDir,
+      )
+
+      expect(err).toBeNull()
+      expect(stagedContent("foo.ts")).toContain("// fixed")
+    })
+
+    it("leaves the fixes unstaged without restage", async () => {
+      const [err] = await execStages({ "*.ts": fixer() }, tmpDir)
+
+      expect(err).toBeNull()
+      expect(stagedContent("foo.ts")).not.toContain("// fixed")
+    })
+
+    it("does not restage a partially staged file and warns", async () => {
+      writeFileSync(join(tmpDir, "foo.ts"), "const x = 1\nconst unstaged = 2")
+      const warnings: string[] = []
+
+      const [err] = await execStages(
+        { "*.ts": { command: fixer(), restage: true } },
+        tmpDir,
+        (msg) => warnings.push(msg),
+      )
+
+      expect(err).toBeNull()
+      expect(stagedContent("foo.ts")).toBe("const x = 1")
+      expect(warnings.join("\n")).toContain("foo.ts")
+    })
+  })
+
   it("passes staged files with spaces through {staged_files}", async () => {
     const spaced = "my cool file.ts"
     const scriptFile = join(tmpDir, "capture-space.cjs")

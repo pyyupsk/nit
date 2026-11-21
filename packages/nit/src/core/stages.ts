@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process"
 import { delimiter, join } from "node:path"
+import type { StageDef } from "../utils/config"
 
 const STAGED_FILES = "{staged_files}"
 
@@ -74,7 +75,6 @@ function expandCommand(command: string, files: string[]): string {
   return command.replaceAll(STAGED_FILES, escapedFiles)
 }
 
-// Stage commands resolve local binaries like `npm run` does
 export function localBinDir(cwd: string): string {
   return join(cwd, "node_modules", ".bin")
 }
@@ -90,8 +90,7 @@ function runCommand(
       return resolve(new Error(`Empty command in stage: "${command}"`))
     }
 
-    // Windows env keys are case-insensitive and usually "Path": reuse that key
-    // so the spread env does not end up with two PATH entries
+    // Windows names it "Path"; a second "PATH" key in the spread env breaks lookup
     const pathKey =
       process.platform === "win32"
         ? (Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ??
@@ -140,9 +139,43 @@ export function getStagedFiles(
   })
 }
 
-export async function execStages(
-  stages: Record<string, string>,
+function gitFiles(
+  args: string[],
   cwd: string,
+): Promise<[Error, null] | [null, string[]]> {
+  return new Promise((resolve) => {
+    const child = spawn("git", args, {
+      cwd,
+      stdio: ["ignore", "pipe", "inherit"],
+    })
+    const stdout: Buffer[] = []
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdout.push(chunk)
+    })
+    child.on("close", (code) =>
+      resolve(
+        code === 0
+          ? [
+              null,
+              Buffer.concat(stdout)
+                .toString("utf8")
+                .split("\0")
+                .filter(Boolean),
+            ]
+          : [new Error(`git ${args[0]} exited with code ${code}`), null],
+      ),
+    )
+    child.on("error", (e) => resolve([e, null]))
+  })
+}
+
+const unstagedFiles = (files: string[], cwd: string) =>
+  gitFiles(["diff", "--name-only", "-z", "--", ...files], cwd)
+
+export async function execStages(
+  stages: StageDef,
+  cwd: string,
+  warn: (msg: string) => void = () => {},
 ): Promise<[Error, null] | [null, true]> {
   const [gitErr, stagedFiles] = await getStagedFiles(cwd)
   if (gitErr !== null) return [gitErr, null]
@@ -155,7 +188,9 @@ export async function execStages(
     return { file, basename: file.split("/").at(-1) ?? file }
   })
 
-  for (const [pattern, command] of Object.entries(stages)) {
+  for (const [pattern, stage] of Object.entries(stages)) {
+    const command = typeof stage === "string" ? stage : stage.command
+    const restage = typeof stage !== "string" && stage.restage === true
     // Compile regex once per pattern, not once per (file, pattern) pair
     const re = globToRegex(pattern)
     const matched = normalized
@@ -163,8 +198,27 @@ export async function execStages(
       .map(({ file }) => file)
     if (matched.length === 0) continue
 
+    // Restaging a partially staged file would commit edits the user did not stage
+    const [beforeErr, partial] = restage
+      ? await unstagedFiles(matched, cwd)
+      : [null, []]
+    if (beforeErr !== null) return [beforeErr, null]
+
     const err = await runCommand(command, matched, cwd)
     if (err !== null) return [err, null]
+    if (!restage) continue
+
+    const [afterErr, changed] = await unstagedFiles(matched, cwd)
+    if (afterErr !== null) return [afterErr, null]
+    const skipped = changed.filter((f) => partial.includes(f))
+    const fixed = changed.filter((f) => !partial.includes(f))
+    if (skipped.length > 0) {
+      warn(`nit: not restaging partially staged files: ${skipped.join(", ")}`)
+    }
+    if (fixed.length > 0) {
+      const [addErr] = await gitFiles(["add", "--", ...fixed], cwd)
+      if (addErr !== null) return [addErr, null]
+    }
   }
 
   return [null, true]
