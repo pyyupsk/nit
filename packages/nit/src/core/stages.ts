@@ -90,9 +90,13 @@ function runCommand(
       return resolve(new Error(`Empty command in stage: "${command}"`))
     }
 
-    // Windows names the key "Path"; reuse the existing key to avoid a duplicate
+    // Windows env keys are case-insensitive and usually "Path": reuse that key
+    // so the spread env does not end up with two PATH entries
     const pathKey =
-      Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ?? "PATH"
+      process.platform === "win32"
+        ? (Object.keys(process.env).find((k) => k.toUpperCase() === "PATH") ??
+          "Path")
+        : "PATH"
     const child = spawn(expandedCommand, {
       cwd,
       env: {
